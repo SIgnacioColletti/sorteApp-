@@ -1,14 +1,29 @@
+<<<<<<< HEAD
 // src/pages/RegistrationForm.jsx
 import React, { useState } from "react";
+=======
+import React, { useState } from "react";
+import { useApp } from "../context/AppContext";
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
 import { useFormValidation } from "../hooks/useFormValidation";
 import { mercadoPagoService } from "../services/mercadopago";
 import Button from "../components/common/Button";
 import Input from "../components/common/Input";
+<<<<<<< HEAD
 import Card from "../components/common/Card";
 import toast from "react-hot-toast";
 
 const RegistrationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
+=======
+import Modal from "../components/common/Modal";
+import Card from "../components/common/Card";
+
+const RegistrationForm = () => {
+  const { addUser } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
 
   const validationRules = {
     fullName: { required: true, label: "Nombre completo" },
@@ -16,6 +31,7 @@ const RegistrationForm = () => {
     phone: { required: true, phone: true, label: "Teléfono" },
   };
 
+<<<<<<< HEAD
   const { values, errors, isValid, setValue, validate } = useFormValidation(
     { fullName: "", email: "", phone: "" },
     validationRules
@@ -26,10 +42,18 @@ const RegistrationForm = () => {
       toast.error("Por favor completa todos los campos correctamente");
       return;
     }
+=======
+  const { values, errors, isValid, setValue, validate, setValues } =
+    useFormValidation({ fullName: "", email: "", phone: "" }, validationRules);
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
 
     setIsLoading(true);
 
     try {
+<<<<<<< HEAD
       console.log("🎯 Iniciando proceso de pago...");
 
       // Crear preferencia en Mercado Pago
@@ -49,6 +73,34 @@ const RegistrationForm = () => {
       toast.error(
         error.message || "Hubo un error. Por favor intentá nuevamente."
       );
+=======
+      const preference = await mercadoPagoService.createPreference(values);
+
+      setTimeout(async () => {
+        const paymentResult = await mercadoPagoService.simulatePayment(
+          preference.id
+        );
+
+        if (paymentResult.status === "approved") {
+          const newUser = {
+            id: Date.now(),
+            ...values,
+            raffleNumber: paymentResult.raffle_number,
+            paymentId: paymentResult.payment_id,
+            registrationDate: new Date().toISOString(),
+            status: "paid",
+          };
+
+          addUser(newUser);
+          setShowSuccess(true);
+          setValues({ fullName: "", email: "", phone: "" });
+        }
+
+        setIsLoading(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error en el registro:", error);
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
       setIsLoading(false);
     }
   };
@@ -95,12 +147,17 @@ const RegistrationForm = () => {
               value={values.phone}
               onChange={(value) => setValue("phone", value)}
               error={errors.phone}
+<<<<<<< HEAD
               placeholder="+54 341 123-4567"
+=======
+              placeholder="+54 11 1234-5678"
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
               required
             />
 
             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
               <div className="flex items-center">
+<<<<<<< HEAD
                 <div className="text-blue-500 mr-3 text-2xl">💳</div>
                 <div>
                   <p className="text-sm font-medium text-blue-800">
@@ -108,6 +165,15 @@ const RegistrationForm = () => {
                   </p>
                   <p className="text-xs text-blue-600">
                     Pago seguro con Mercado Pago
+=======
+                <div className="text-blue-500 mr-3">💳</div>
+                <div>
+                  <p className="text-sm font-medium text-blue-800">
+                    Costo de participación: $10 USD
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Serás redirigido a Mercado Pago para completar el pago
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
                   </p>
                 </div>
               </div>
@@ -116,6 +182,7 @@ const RegistrationForm = () => {
             <Button
               onClick={handleSubmit}
               className="w-full"
+<<<<<<< HEAD
               disabled={!isValid || isLoading}
               loading={isLoading}
             >
@@ -145,6 +212,35 @@ const RegistrationForm = () => {
             Al continuar, aceptás nuestros términos y condiciones
           </p>
         </div>
+=======
+              disabled={!isValid}
+              loading={isLoading}
+            >
+              {isLoading ? "Procesando Pago..." : "Registrarse y Pagar"}
+            </Button>
+          </div>
+        </Card>
+
+        <Modal
+          isOpen={showSuccess}
+          onClose={() => setShowSuccess(false)}
+          title="¡Registro Exitoso!"
+        >
+          <div className="text-center">
+            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-green-600 text-2xl">✅</span>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              ¡Felicitaciones!
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Tu pago ha sido procesado exitosamente. Ya tienes tu número de
+              participación para el sorteo.
+            </p>
+            <Button onClick={() => setShowSuccess(false)}>Entendido</Button>
+          </div>
+        </Modal>
+>>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
       </div>
     </div>
   );
