@@ -13,15 +13,23 @@ const PaymentSuccess = () => {
   const [processing, setProcessing] = useState(true);
   const [userData, setUserData] = useState(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [alreadyProcessed, setAlreadyProcessed] = useState(false); // ⭐ NUEVO
 
   useEffect(() => {
+    // ⭐ EVITAR MÚLTIPLES EJECUCIONES
+    if (alreadyProcessed) {
+      console.log("⚠️ Ya procesado, saltando...");
+      return;
+    }
+
     const processPayment = async () => {
       try {
         const pendingUser = localStorage.getItem("pending_user");
 
         if (!pendingUser) {
-          toast.error("No se encontraron datos del usuario");
-          navigate("/");
+          console.log("⚠️ No hay datos pendientes");
+          setAlreadyProcessed(true); // ⭐ MARCAR COMO PROCESADO
+          setProcessing(false);
           return;
         }
 
@@ -33,6 +41,10 @@ const PaymentSuccess = () => {
         console.log("📊 Status:", status);
 
         if (status === "approved" && paymentId) {
+          // ⭐ MARCAR COMO PROCESADO ANTES DE HACER NADA
+          setAlreadyProcessed(true);
+          localStorage.removeItem("pending_user"); // ⭐ LIMPIAR INMEDIATAMENTE
+
           // Guardar usuario en Firebase
           const newUser = await addUser({
             ...userInfo,
@@ -44,7 +56,7 @@ const PaymentSuccess = () => {
 
           setUserData(newUser);
 
-          // ⭐ ENVIAR EMAIL DE CONFIRMACIÓN
+          // ⭐ ENVIAR EMAIL SOLO UNA VEZ
           try {
             console.log("📧 Enviando email de confirmación...");
 
@@ -72,10 +84,8 @@ const PaymentSuccess = () => {
           } catch (emailError) {
             console.error("⚠️ Error en servicio de email:", emailError);
             setEmailSent(false);
-            // NO fallar todo el proceso si el email falla
           }
 
-          localStorage.removeItem("pending_user");
           toast.success("¡Pago exitoso! Ya tenés tu número");
         } else {
           toast.error("El pago no fue aprobado");
@@ -90,7 +100,7 @@ const PaymentSuccess = () => {
     };
 
     processPayment();
-  }, [searchParams, addUser, navigate]);
+  }, []); // ⭐ DEPENDENCIAS VACÍAS - SOLO EJECUTAR UNA VEZ
 
   if (processing) {
     return (
@@ -132,7 +142,6 @@ const PaymentSuccess = () => {
               </div>
             )}
 
-            {/* ⭐ MENSAJE DE EMAIL DINÁMICO */}
             <div
               className={`border-l-4 p-4 mb-6 text-left ${
                 emailSent

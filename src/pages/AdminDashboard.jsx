@@ -1,126 +1,556 @@
-import React, { useEffect, useState } from "react";
-import RouletteWheel from "./RouletteWheel";
-import { refreshUsers, markWinner, resetAllWinners } from "../firebaseConfig"; // Ajustá la ruta si es necesario
-import {
-  sendWinnerEmail,
-  exportUserDataToSheets,
-} from "../services/adminService";
+// src/pages/AdminDashboard.jsx
+import React, { useState, useEffect } from "react";
+import { useApp } from "../context/AppContext";
+import RouletteWheel from "../components/Wheel";
+import Button from "../components/common/Button";
+import Card from "../components/common/Card";
+import Modal from "../components/common/Modal";
+import toast from "react-hot-toast";
 
 const AdminDashboard = () => {
-  const [users, setUsers] = useState([]);
-  const [activeDraws, setActiveDraws] = useState({});
-  const [drawResult, setDrawResult] = useState(null);
+  const {
+    users,
+    loading,
+    markWinner,
+    refreshUsers,
+    startNewRaffle, // ⭐ CAMBIAR resetAllWinners por startNewRaffle
+    currentRaffle, // ⭐ NUEVO
+    raffleHistory, // ⭐ NUEVO
+    getArchivedUsers, // ⭐ NUEVO
+  } = useApp();
+  const [selectedWinner, setSelectedWinner] = useState(null);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [showWheel, setShowWheel] = useState(false);
 
-  // Cargar usuarios
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const fetchedUsers = await refreshUsers();
-      setUsers(fetchedUsers || []);
-    };
-
-    fetchUsers();
-  }, []);
-
-  const handleSpinComplete = async (selectedUser) => {
-    if (!selectedUser) return;
-
-    await markWinner(selectedUser.email);
-    await sendWinnerEmail(selectedUser.email);
-
-    setDrawResult(selectedUser);
-
-    const updatedUsers = await refreshUsers();
-    setUsers(updatedUsers);
-  };
-
-  const handleResetUsers = async () => {
-    await resetAllWinners();
-    const updatedUsers = await refreshUsers();
-    setUsers(updatedUsers);
-    alert("Usuarios reiniciados correctamente.");
-  };
-
-  const handleExportData = async () => {
+  const handleWheelFinished = async (winner) => {
     try {
-      const url = await exportUserDataToSheets();
-      window.open(url, "_blank");
-      alert("Datos exportados correctamente a Google Sheets.");
+      await markWinner(winner.id);
+      setSelectedWinner(winner);
+      setShowWinnerModal(true);
+      setShowWheel(false);
+
+      // Enviar email al ganador
+      try {
+        console.log("📧 Enviando email al ganador...");
+
+        const emailResponse = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/emails/send-winner`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fullName: winner.fullName,
+              email: winner.email,
+              raffleNumber: winner.raffleNumber,
+            }),
+          }
+        );
+
+        if (emailResponse.ok) {
+          console.log("✅ Email de ganador enviado");
+          toast.success("🏆 Email enviado al ganador!");
+        } else {
+          console.warn("⚠️ No se pudo enviar email al ganador");
+          toast.error("Ganador seleccionado pero email falló");
+        }
+      } catch (emailError) {
+        console.error("⚠️ Error enviando email:", emailError);
+        toast.error("Ganador seleccionado pero email falló");
+      }
     } catch (error) {
-      console.error("Error exportando datos:", error);
-      alert("Hubo un error al exportar los datos.");
+      toast.error("Error al guardar ganador");
     }
   };
 
-  // Activar/desactivar sorteos por categoría
-  const handleToggleDraw = (category) => {
-    setActiveDraws((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
+  const handleNewRaffle = async () => {
+    if (
+      window.confirm(
+        "¿Estás seguro de iniciar un nuevo sorteo? Los participantes actuales serán archivados."
+      )
+    ) {
+      try {
+        await startNewRaffle();
+        setSelectedWinner(null);
+        setShowWheel(false);
+        toast.success("Nuevo sorteo iniciado. Participantes archivados.");
+      } catch (error) {
+        toast.error("Error al iniciar nuevo sorteo");
+      }
+    }
   };
+  const totalUsers = users.length;
+  const totalRevenue = totalUsers * 1000;
+  const winner = users.find((user) => user.isWinner);
+  const paidUsers = users.filter((user) => user.status === "paid");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Cargando datos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Panel de Administración</h2>
-
-      {/* Botones principales */}
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={handleResetUsers}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Resetear Usuarios
-        </button>
-
-        <button
-          onClick={handleExportData}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
-          Exportar Datos
-        </button>
-      </div>
-
-      {/* Categorías de sorteos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {["100% OFF", "50% OFF", "25% OFF"].map((category) => (
-          <div
-            key={category}
-            className={`p-4 border rounded shadow ${
-              activeDraws[category] ? "border-green-500" : "border-gray-300"
-            }`}
-          >
-            <h3 className="text-lg font-semibold mb-2">{category}</h3>
-
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                Panel de Administración
+              </h1>
+              <p className="text-gray-600">
+                Gestiona participantes y sorteos en tiempo real
+              </p>
+            </div>
             <button
-              onClick={() => handleToggleDraw(category)}
-              className={`px-4 py-2 rounded mb-4 ${
-                activeDraws[category]
-                  ? "bg-red-500 text-white"
-                  : "bg-blue-500 text-white"
-              }`}
+              onClick={refreshUsers}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
-              {activeDraws[category] ? "Desactivar" : "Activar"}
+              <span className="text-xl">🔄</span>
+              <span>Actualizar</span>
             </button>
+          </div>
+        </div>
 
-            {activeDraws[category] && (
-              <RouletteWheel
-                users={users.filter((u) => u.category === category)}
-                onSpinComplete={handleSpinComplete}
-              />
+        {/* Estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">
+                  Total Participantes
+                </p>
+                <p className="text-3xl font-bold text-blue-700">{totalUsers}</p>
+                <p className="text-xs text-blue-500 mt-1">
+                  {paidUsers.length} pagados
+                </p>
+              </div>
+              <div className="bg-blue-200 p-3 rounded-full">
+                <span className="text-blue-700 text-2xl">👥</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">
+                  Ingresos Totales
+                </p>
+                <p className="text-3xl font-bold text-green-700">
+                  ${totalRevenue.toLocaleString()}
+                </p>
+                <p className="text-xs text-green-500 mt-1">ARS</p>
+              </div>
+              <div className="bg-green-200 p-3 rounded-full">
+                <span className="text-green-700 text-2xl">💰</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">
+                  Estado Sorteo
+                </p>
+                <p className="text-lg font-bold text-purple-700">
+                  {winner ? "Finalizado" : "Pendiente"}
+                </p>
+                <p className="text-xs text-purple-500 mt-1">
+                  {winner
+                    ? new Date(winner.winDate).toLocaleDateString()
+                    : "Sin sortear"}
+                </p>
+              </div>
+              <div className="bg-purple-200 p-3 rounded-full">
+                <span className="text-purple-700 text-2xl">🎲</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600">Ganador</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  {winner ? `#${winner.raffleNumber}` : "Sin definir"}
+                </p>
+                <p className="text-xs text-orange-500 mt-1">
+                  {winner ? winner.fullName.split(" ")[0] : "Esperando sorteo"}
+                </p>
+              </div>
+              <div className="bg-orange-200 p-3 rounded-full">
+                <span className="text-orange-700 text-2xl">🏆</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Sorteo y Ruleta */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div className="lg:col-span-2">
+            {showWheel && !winner ? (
+              <RouletteWheel users={users} onFinished={handleWheelFinished} />
+            ) : (
+              <Card className="p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-6">
+                  Control de Sorteo
+                </h3>
+
+                {!winner ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="bg-blue-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-blue-600 text-4xl">🎲</span>
+                      </div>
+                      <p className="text-gray-700 text-lg font-semibold mb-2">
+                        {totalUsers > 0
+                          ? `${totalUsers} participante${
+                              totalUsers > 1 ? "s" : ""
+                            } registrado${totalUsers > 1 ? "s" : ""}`
+                          : "Esperando participantes..."}
+                      </p>
+                      {totalUsers > 0 && (
+                        <p className="text-gray-500 text-sm mb-4">
+                          Números del #{users[0]?.raffleNumber} al #
+                          {users[users.length - 1]?.raffleNumber}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={() => setShowWheel(true)}
+                      disabled={totalUsers === 0}
+                      className="w-full text-lg py-4"
+                      variant="secondary"
+                    >
+                      <span className="flex items-center justify-center space-x-2">
+                        <span className="text-2xl">🎡</span>
+                        <span>Mostrar Ruleta y Sortear</span>
+                      </span>
+                    </Button>
+
+                    {totalUsers === 0 && (
+                      <p className="text-red-500 text-sm text-center">
+                        No hay participantes para sortear
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="bg-yellow-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-yellow-600 text-4xl">🏆</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-gray-800 mb-2">
+                      ¡Sorteo Finalizado!
+                    </h4>
+                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-4">
+                      <p className="text-sm text-yellow-700 mb-1">
+                        Número Ganador
+                      </p>
+                      <p className="text-4xl font-bold text-yellow-800 mb-2">
+                        #{winner.raffleNumber}
+                      </p>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {winner.fullName}
+                      </p>
+                      <p className="text-sm text-gray-600">{winner.email}</p>
+                      <p className="text-sm text-gray-600">{winner.phone}</p>
+                    </div>
+                    <Button
+                      onClick={handleNewRaffle}
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                    >
+                      Nuevo Sorteo
+                    </Button>
+                  </div>
+                )}
+              </Card>
             )}
           </div>
-        ))}
-      </div>
 
-      {/* Resultado del sorteo */}
-      {drawResult && (
-        <div className="mt-6 p-4 rounded bg-green-200 text-green-900">
-          <h4 className="font-bold">🎉 Ganador:</h4>
-          <p>
-            {drawResult.name} ({drawResult.email})
-          </p>
+          {/* Últimos participantes */}
+          <div>
+            <Card className="p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
+                Últimas Compras 🔥
+              </h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {users.slice(0, 10).map((user) => (
+                  <div
+                    key={user.id}
+                    className={`p-3 rounded-lg border ${
+                      user.isWinner
+                        ? "bg-yellow-50 border-yellow-300"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`text-2xl font-bold ${
+                            user.isWinner ? "text-yellow-600" : "text-blue-600"
+                          }`}
+                        >
+                          #{user.raffleNumber}
+                        </span>
+                        {user.isWinner && <span className="text-xl">🏆</span>}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(user.createdAt).toLocaleTimeString("es-AR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800 mt-1">
+                      {user.fullName}
+                    </p>
+                    <p className="text-xs text-gray-600">{user.email}</p>
+                  </div>
+                ))}
+                {users.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <p className="text-4xl mb-2">👥</p>
+                    <p className="text-sm">Sin participantes aún</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
         </div>
-      )}
+
+        {/* Tabla completa */}
+        <Card className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-800">
+              Lista Completa de Participantes
+            </h2>
+            <span className="text-sm text-gray-600">
+              {totalUsers} registrados
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200 bg-gray-50">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Número
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Participante
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Email
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Teléfono
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Fecha
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr
+                    key={user.id}
+                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                      user.isWinner ? "bg-yellow-50 border-yellow-200" : ""
+                    }`}
+                  >
+                    <td className="py-4 px-4">
+                      <span
+                        className={`font-bold text-2xl ${
+                          user.isWinner ? "text-yellow-600" : "text-blue-600"
+                        }`}
+                      >
+                        #{user.raffleNumber}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-800">
+                          {user.fullName}
+                        </span>
+                        {user.isWinner && (
+                          <span className="text-yellow-500">🏆</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-gray-600 text-sm">
+                      {user.email}
+                    </td>
+                    <td className="py-4 px-4 text-gray-600 text-sm">
+                      {user.phone}
+                    </td>
+                    <td className="py-4 px-4 text-gray-600 text-sm">
+                      {new Date(user.createdAt).toLocaleDateString("es-AR")}
+                      <br />
+                      <span className="text-xs text-gray-400">
+                        {new Date(user.createdAt).toLocaleTimeString("es-AR")}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          user.isWinner
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {user.isWinner ? "🏆 Ganador" : "✅ Pagado"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {users.length === 0 && (
+              <div className="text-center py-16">
+                <div className="text-gray-400 text-6xl mb-4">👥</div>
+                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                  No hay participantes aún
+                </h3>
+                <p className="text-gray-500">
+                  Los usuarios registrados aparecerán aquí automáticamente
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Modal de ganador */}
+        <Modal
+          isOpen={showWinnerModal}
+          onClose={() => setShowWinnerModal(false)}
+          title="🎉 ¡Tenemos Ganador!"
+        >
+          {selectedWinner && (
+            <div className="text-center">
+              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-white text-6xl">🏆</span>
+              </div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-4">
+                ¡Felicitaciones!
+              </h3>
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-8 mb-6">
+                <p className="text-sm text-yellow-700 mb-2">Número Ganador</p>
+                <p className="text-6xl font-bold text-yellow-800 mb-4">
+                  #{selectedWinner.raffleNumber}
+                </p>
+                <p className="text-2xl font-semibold text-gray-800 mb-2">
+                  {selectedWinner.fullName}
+                </p>
+                <p className="text-gray-600 mb-1">{selectedWinner.email}</p>
+                <p className="text-gray-600">{selectedWinner.phone}</p>
+              </div>
+              <Button onClick={() => setShowWinnerModal(false)}>
+                ¡Excelente!
+              </Button>
+            </div>
+          )}
+        </Modal>
+        {/* Historial de Sorteos */}
+        {raffleHistory && raffleHistory.length > 1 && (
+          <Card className="p-6 mt-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">
+              📜 Historial de Sorteos
+            </h2>
+
+            <div className="space-y-4">
+              {raffleHistory.map((raffle, index) => (
+                <div
+                  key={raffle.id}
+                  className={`border rounded-lg p-4 ${
+                    raffle.status === "active"
+                      ? "bg-blue-50 border-blue-300"
+                      : "bg-gray-50 border-gray-200"
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        {raffle.status === "active"
+                          ? "🔴 SORTEO ACTUAL"
+                          : `Sorteo #${raffleHistory.length - index}`}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Inicio:{" "}
+                        {new Date(raffle.startDate).toLocaleString("es-AR")}
+                      </p>
+                      {raffle.endDate && (
+                        <p className="text-sm text-gray-600">
+                          Fin:{" "}
+                          {new Date(raffle.endDate).toLocaleString("es-AR")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="text-right">
+                      {raffle.winner ? (
+                        <div className="bg-yellow-100 px-3 py-2 rounded-lg">
+                          <p className="text-xs text-yellow-700">Ganador</p>
+                          <p className="font-bold text-yellow-800">
+                            #{raffle.winner.raffleNumber}
+                          </p>
+                          <p className="text-xs text-yellow-700">
+                            {raffle.winner.fullName}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          {raffle.status === "active"
+                            ? "En progreso"
+                            : "Sin ganador"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="text-gray-600">
+                      👥 {raffle.totalParticipants || 0} participantes
+                    </span>
+                    {raffle.status === "completed" && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const archived = await getArchivedUsers(raffle.id);
+                            console.log("Participantes archivados:", archived);
+                            toast.success(
+                              `${archived.length} participantes encontrados`
+                            );
+                          } catch (error) {
+                            toast.error("Error cargando participantes");
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-800 underline text-xs"
+                      >
+                        Ver participantes →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

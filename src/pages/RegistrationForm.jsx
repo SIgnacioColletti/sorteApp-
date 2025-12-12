@@ -1,151 +1,193 @@
 // src/pages/RegistrationForm.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { useFormValidation } from "../hooks/useFormValidation";
-import { mercadoPagoService } from "../services/mercadopago";
-
 import Button from "../components/common/Button";
-import Input from "../components/common/Input";
 import Card from "../components/common/Card";
-
+import Input from "../components/common/Input";
 import toast from "react-hot-toast";
 
 const RegistrationForm = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { addUser } = useApp();
 
-  const validationRules = {
-    fullName: { required: true, label: "Nombre completo" },
-    email: { required: true, email: true, label: "Email" },
-    phone: { required: true, phone: true, label: "Teléfono" },
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+  });
+
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validación del formulario
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "El nombre es requerido";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim()) {
+      newErrors.email = "El email es requerido";
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = "Email inválido";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "El teléfono es requerido";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const { values, errors, isValid, setValue, validate } = useFormValidation(
-    { fullName: "", email: "", phone: "" },
-    validationRules
-  );
+  // Manejar cambios en inputs
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
 
-  const handleSubmit = async () => {
-    if (!validate()) {
-      toast.error("Por favor completa todos los campos correctamente");
+    // Limpiar error del campo que se está editando
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  // Manejar envío del formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      toast.error("Por favor completá todos los campos correctamente");
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      console.log("🎯 Iniciando proceso de pago...");
+      console.log("🎯 Guardando usuario en Firebase...");
 
-      const preference = await mercadoPagoService.createPreference(values);
+      // Guardar directamente en Firebase (sin Mercado Pago por ahora)
+      const newUser = await addUser({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        paymentId: "SIMULADO-" + Date.now(),
+        registrationDate: new Date().toISOString(),
+        status: "paid",
+        amount: 1000,
+      });
 
-      console.log("✅ Preferencia creada:", preference.id);
+      console.log("✅ Usuario guardado:", newUser);
+      toast.success(`¡Registro exitoso! Tu número es #${newUser.raffleNumber}`);
 
-      // Guardar datos para recuperar cuando vuelva del pago
-      localStorage.setItem("pending_user", JSON.stringify(values));
+      // Guardar en localStorage para la página de éxito
+      localStorage.setItem(
+        "pending_user",
+        JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+        })
+      );
 
-      console.log("🔗 Redirigiendo a Mercado Pago...");
-      window.location.href = preference.init_point;
+      // Redirigir a página de éxito
+      setTimeout(() => {
+        navigate(`/payment-success?payment_id=SIMULADO&status=approved`);
+      }, 1500);
     } catch (error) {
       console.error("❌ Error:", error);
-      toast.error(error.message || "Hubo un error. Intenta nuevamente.");
-      setIsLoading(false);
+      toast.error("Error al procesar el registro");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
       <div className="max-w-md mx-auto">
         <Card className="p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-2xl">🎟️</span>
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-4xl">🎟️</span>
             </div>
-
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
               ¡Participa del Sorteo!
-            </h2>
-
+            </h1>
             <p className="text-gray-600">
-              Completa tus datos y asegura tu número de la suerte
+              Completa tus datos y asegura tu número de la suerte.
             </p>
           </div>
 
-          {/* Form */}
-          <Input
-            label="Nombre Completo"
-            value={values.fullName}
-            onChange={(value) => setValue("fullName", value)}
-            error={errors.fullName}
-            placeholder="Ej: Juan Pérez"
-            required
-          />
-
-          <Input
-            label="Email"
-            type="email"
-            value={values.email}
-            onChange={(value) => setValue("email", value)}
-            error={errors.email}
-            placeholder="tu@email.com"
-            required
-          />
-
-          <Input
-            label="Teléfono"
-            type="tel"
-            value={values.phone}
-            onChange={(value) => setValue("phone", value)}
-            error={errors.phone}
-            placeholder="+54 341 123-4567"
-            required
-          />
-
-          {/* Info Pago */}
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
-            <div className="flex items-center">
-              <div className="text-blue-500 mr-3 text-2xl">💳</div>
-              <div>
-                <p className="text-sm font-medium text-blue-800">
-                  Costo de participación: $1.000 ARS
-                </p>
-                <p className="text-xs text-blue-600">
-                  Pago seguro con Mercado Pago
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <Button
-            onClick={handleSubmit}
-            className="w-full"
-            disabled={!isValid || isLoading}
-            loading={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center space-x-2">
-                <span className="animate-spin">⏳</span>
-                <span>Redirigiendo a pago...</span>
-              </span>
-            ) : (
-              "Continuar al Pago →"
-            )}
-          </Button>
-
-          {/* Mercado Pago logo */}
-          <div className="mt-4 flex items-center justify-center space-x-2">
-            <img
-              src="https://http2.mlstatic.com/storage/logos-api-admin/a5f047d0-9be0-11ec-aad4-c3381f368aaf-m.svg"
-              alt="Mercado Pago"
-              className="h-6"
+          {/* Formulario */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Input
+              label="Nombre Completo"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              error={errors.fullName}
+              placeholder="Ej: Juan Pérez"
+              required
             />
-            <span className="text-xs text-gray-500">Pago 100% seguro</span>
-          </div>
+
+            <Input
+              label="Correo electrónico"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={errors.email}
+              placeholder="tu-email@gmail.com"
+              required
+            />
+
+            <Input
+              label="Teléfono"
+              name="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={handleChange}
+              error={errors.phone}
+              placeholder="341-234-5678"
+              required
+            />
+
+            {/* Info del costo */}
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+              <p className="text-blue-800 text-sm">
+                💰 <strong>Costo de participación: $1.000 ARS</strong>
+                <br />
+                <span className="text-xs">
+                  (Pago simulado para pruebas - En producción: Mercado Pago)
+                </span>
+              </p>
+            </div>
+
+            {/* Botón de envío */}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Procesando..." : "Registrarse →"}
+            </Button>
+
+            <p className="text-xs text-gray-500 text-center">
+              Al continuar, aceptas nuestros términos y condiciones.
+            </p>
+          </form>
         </Card>
 
+        {/* Footer info */}
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            Al continuar, aceptás nuestros términos y condiciones
+          <p className="text-sm text-gray-600">
+            <span className="inline-block mr-2">✅</span>
+            Registro seguro y rápido
           </p>
         </div>
       </div>
