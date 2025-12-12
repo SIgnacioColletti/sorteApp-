@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 // src/context/AppContext.jsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import {
@@ -8,9 +8,9 @@ import {
   resetWinners,
 } from "../firebase/users";
 import toast from "react-hot-toast";
-=======
+
 import React, { createContext, useContext, useState } from "react";
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
+
 
 const AppContext = createContext();
 
@@ -24,7 +24,7 @@ export const useApp = () => {
 
 export const AppProvider = ({ children }) => {
   const [users, setUsers] = useState([]);
-<<<<<<< HEAD
+
   const [loading, setLoading] = useState(true);
 
   // Cargar usuarios al montar
@@ -93,27 +93,27 @@ export const AppProvider = ({ children }) => {
       toast.error("Error al reiniciar sorteo");
       throw error;
     }
-=======
+
   const [currentView, setCurrentView] = useState("home");
 
   const addUser = (user) => {
     setUsers((prev) => [...prev, user]);
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
+
   };
 
   const value = {
     users,
     setUsers,
     addUser,
-<<<<<<< HEAD
+
     loading,
     refreshUsers: loadUsers,
     markWinner,
     resetAllWinners,
-=======
+
     currentView,
     setCurrentView,
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
+
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

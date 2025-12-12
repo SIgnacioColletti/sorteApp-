@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // src/services/mercadopago.js
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -63,31 +62,3 @@ export const mercadoPagoService = {
 };
 
 export default mercadoPagoService;
-=======
-export const mercadoPagoService = {
-  createPreference: async (userData) => {
-    const preference = {
-      id: "MP-" + Date.now(),
-      init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=MP-${Date.now()}`,
-      userData,
-      amount: 1000,
-    };
-
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(preference), 1000);
-    });
-  },
-
-  simulatePayment: async (preferenceId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          status: "approved",
-          payment_id: "PAY-" + Date.now(),
-          raffle_number: Math.floor(Math.random() * 9000) + 1000,
-        });
-      }, 2000);
-    });
-  },
-};
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb

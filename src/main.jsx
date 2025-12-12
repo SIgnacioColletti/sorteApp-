@@ -1,19 +1,14 @@
-<<<<<<< HEAD
 // src/main.jsx
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-=======
-import React from "react";
-import ReactDOM from "react-dom/client";
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
 import App from "./App.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-<<<<<<< HEAD
     <BrowserRouter>
       <App />
       <Toaster
@@ -41,8 +36,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         }}
       />
     </BrowserRouter>
-=======
+
     <App />
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
   </React.StrictMode>
 );

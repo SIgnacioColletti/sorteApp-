@@ -1,18 +1,12 @@
-<<<<<<< HEAD
 // src/App.jsx
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppProvider } from "./context/AppContext";
 import { onAuthChange } from "./firebase/auth";
-=======
-import React, { useState } from "react";
-import { AppProvider } from "./context/AppContext";
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
 import Navbar from "./components/layout/Navbar";
 import RegistrationForm from "./pages/RegistrationForm";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
-<<<<<<< HEAD
 import PaymentSuccess from "./pages/PaymentSuccess"; // ⭐ NUEVO
 import PaymentFailure from "./pages/PaymentFailure"; // ⭐ NUEVO
 import PaymentPending from "./pages/PaymentPending"; // ⭐ NUEVO
@@ -51,22 +45,19 @@ const App = () => {
       </div>
     );
   }
-=======
 
-const App = () => {
-  const [currentView, setCurrentView] = useState("home");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const App = () => {
+    const [currentView, setCurrentView] = useState("home");
+    const [isAdmin, setIsAdmin] = useState(false);
 
-  const handleAdminLogin = () => {
-    setIsAdmin(true);
-    setCurrentView("admin");
+    const handleAdminLogin = () => {
+      setIsAdmin(true);
+      setCurrentView("admin");
+    };
   };
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
-
   return (
     <AppProvider>
       <div className="min-h-screen bg-gray-50">
-<<<<<<< HEAD
         {window.location.pathname.includes(SECRET_ADMIN_PATH) && (
           <Navbar
             isAuthenticated={isAuthenticated}
@@ -108,7 +99,7 @@ const App = () => {
           {/* Cualquier otra ruta */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-=======
+
         <Navbar
           currentView={currentView}
           setCurrentView={setCurrentView}
@@ -119,7 +110,6 @@ const App = () => {
         {currentView === "home" && <RegistrationForm />}
         {currentView === "login" && <AdminLogin onLogin={handleAdminLogin} />}
         {currentView === "admin" && isAdmin && <AdminDashboard />}
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
       </div>
     </AppProvider>
   );

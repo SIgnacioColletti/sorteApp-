@@ -1,211 +1,162 @@
-<<<<<<< HEAD
 // src/pages/AdminLogin.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signIn } from "../firebase/auth";
-import Button from "../components/common/Button";
-import Input from "../components/common/Input";
 import Card from "../components/common/Card";
+import Input from "../components/common/Input";
+import Button from "../components/common/Button";
 import toast from "react-hot-toast";
 
-const AdminLogin = ({ secretPath }) => {
+const AdminLogin = ({ secretPath, onLogin }) => {
   const navigate = useNavigate();
+
   const [credentials, setCredentials] = useState({
     email: "",
     password: "",
+    username: "",
   });
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // -----------------------------
+  // 🔐 LOGIN CON FIREBASE
+  // -----------------------------
+  const loginWithFirebase = async (e) => {
     e.preventDefault();
 
     if (!credentials.email || !credentials.password) {
-      toast.error("Por favor completa todos los campos");
+      toast.error("Completa todos los campos");
       return;
     }
 
-    setLoading(true);
-
     try {
+      setLoading(true);
       await signIn(credentials.email, credentials.password);
       toast.success("¡Bienvenido!");
       navigate(`/${secretPath}/dashboard`);
-    } catch (error) {
-      toast.error(error.message || "Credenciales incorrectas");
+    } catch (err) {
+      toast.error("Credenciales incorrectas");
     } finally {
       setLoading(false);
-=======
-import React, { useState } from "react";
-import Button from "../components/common/Button";
-import Input from "../components/common/Input";
-import Card from "../components/common/Card";
+    }
+  };
 
-const AdminLogin = ({ onLogin }) => {
-  const [credentials, setCredentials] = useState({
-    username: "",
-    password: "",
-  });
-  const [error, setError] = useState("");
+  // -----------------------------
+  // 🧪 LOGIN DEMO (sin Firebase)
+  // -----------------------------
+  const loginDemo = (e) => {
+    e.preventDefault();
 
-  const handleSubmit = () => {
     if (
       credentials.username === "admin" &&
       credentials.password === "admin123"
     ) {
-      onLogin();
       setError("");
+      onLogin?.();
+      toast.success("Acceso permitido");
     } else {
       setError("Credenciales incorrectas");
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
     }
   };
 
+  // Selecciona modo automático
+  const useFirebase = !!secretPath;
+
+  const handleSubmit = useFirebase ? loginWithFirebase : loginDemo;
+
   return (
-<<<<<<< HEAD
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black py-12 px-4 flex items-center justify-center">
       <div className="max-w-md w-full">
         <Card className="p-8 bg-gray-800 border border-gray-700">
-=======
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
-      <div className="max-w-md mx-auto">
-        <Card className="p-8">
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
+          {/* Header */}
           <div className="text-center mb-8">
             <div className="bg-gradient-to-r from-gray-600 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-white text-2xl">🔐</span>
             </div>
-<<<<<<< HEAD
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Acceso Restringido
-            </h2>
-            <p className="text-gray-400">Panel de administración</p>
+
+            <h2 className="text-3xl font-bold text-white mb-2">Acceso Admin</h2>
+            <p className="text-gray-400">
+              {useFirebase
+                ? "Ingresa tus credenciales para continuar"
+                : "Modo demo activado"}
+            </p>
           </div>
 
+          {/* FORM */}
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-300 text-sm font-medium mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={credentials.email}
-                onChange={(e) =>
-                  setCredentials((prev) => ({ ...prev, email: e.target.value }))
-                }
-                placeholder="admin@sorteo.com"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
+            {useFirebase ? (
+              <>
+                <Input
+                  label="Email"
+                  type="email"
+                  value={credentials.email}
+                  onChange={(v) => setCredentials((p) => ({ ...p, email: v }))}
+                  placeholder="admin@sorteo.com"
+                  required
+                />
 
-            <div className="mb-6">
-              <label className="block text-gray-300 text-sm font-medium mb-2">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials((prev) => ({
-                    ...prev,
-                    password: e.target.value,
-                  }))
-                }
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
+                <Input
+                  label="Contraseña"
+                  type="password"
+                  value={credentials.password}
+                  onChange={(v) =>
+                    setCredentials((p) => ({ ...p, password: v }))
+                  }
+                  placeholder="••••••••"
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <Input
+                  label="Usuario"
+                  value={credentials.username}
+                  onChange={(v) =>
+                    setCredentials((p) => ({ ...p, username: v }))
+                  }
+                  placeholder="admin"
+                  required
+                />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
-                loading
-                  ? "bg-gray-600 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105"
-              }`}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center space-x-2">
-                  <span className="animate-spin">⏳</span>
-                  <span>Verificando...</span>
-                </span>
-              ) : (
-                "Ingresar"
-              )}
-            </button>
+                <Input
+                  label="Contraseña"
+                  type="password"
+                  value={credentials.password}
+                  onChange={(v) =>
+                    setCredentials((p) => ({ ...p, password: v }))
+                  }
+                  placeholder="admin123"
+                  required
+                />
+
+                {error && (
+                  <div className="bg-red-900 border border-red-700 p-3 rounded mt-4 text-red-200 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="bg-blue-900 border border-blue-700 p-3 rounded mt-4 text-blue-200 text-xs">
+                  Usuario demo: <strong>admin</strong> <br />
+                  Contraseña demo: <strong>admin123</strong>
+                </div>
+              </>
+            )}
+
+            {/* BOTÓN */}
+            <Button type="submit" disabled={loading} className="w-full mt-6">
+              {loading ? "Verificando..." : "Ingresar"}
+            </Button>
           </form>
 
-          {/* Botón oculto para volver */}
+          {/* Volver */}
           <div className="mt-6 text-center">
             <button
               onClick={() => navigate("/")}
               className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
             >
-              ←
+              ← Volver al inicio
             </button>
-          </div>
-
-          {/* Instrucciones para crear admin (solo visible en desarrollo) */}
-          <div className="mt-6 bg-yellow-900 bg-opacity-30 border border-yellow-700 p-4 rounded-lg">
-            <p className="text-xs text-yellow-300 mb-2">
-              <strong>⚠️ Primera vez:</strong> Crea tu usuario admin
-            </p>
-            <p className="text-xs text-yellow-400 font-mono">
-              Abre la consola (F12) y ejecuta:
-            </p>
-            <pre className="text-xs text-yellow-200 bg-gray-900 p-2 rounded mt-2 overflow-x-auto">
-              {`import { createAdmin } from './src/firebase/auth';
-createAdmin('admin@sorteo.com', 'TuPassword123!');`}
-            </pre>
-=======
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              Panel Admin
-            </h2>
-            <p className="text-gray-600">
-              Ingresa tus credenciales para continuar
-            </p>
-          </div>
-
-          <div>
-            <Input
-              label="Usuario"
-              value={credentials.username}
-              onChange={(value) =>
-                setCredentials((prev) => ({ ...prev, username: value }))
-              }
-              placeholder="admin"
-              required
-            />
-
-            <Input
-              label="Contraseña"
-              type="password"
-              value={credentials.password}
-              onChange={(value) =>
-                setCredentials((prev) => ({ ...prev, password: value }))
-              }
-              placeholder="admin123"
-              required
-            />
-
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded-r-lg">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
-              <p className="text-xs text-blue-600">
-                <strong>Demo:</strong> usuario: admin, contraseña: admin123
-              </p>
-            </div>
-
-            <Button onClick={handleSubmit} className="w-full">
-              Ingresar
-            </Button>
->>>>>>> b8768e3d0b4e94956a6f974fa303fd65eb79f2fb
           </div>
         </Card>
       </div>
