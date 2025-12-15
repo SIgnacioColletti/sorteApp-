@@ -24,6 +24,7 @@ function App() {
             <Route path="/payment-failure" element={<PaymentFailure />} />
             <Route path="/payment-pending" element={<PaymentPending />} />
             <Route path="/EL-ADMIN-SE-LA-COME/login" element={<AdminLogin />} />
+
             <Route
               path="/EL-ADMIN-SE-LA-COME/dashboard"
               element={<AdminDashboard />}
